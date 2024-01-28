@@ -1,19 +1,20 @@
-import Debug from "debug";
 import express from "express";
 import * as env from "./environment";
 import user from "./modules/user/router";
 
-const debug = Debug("nadsoft-be");
 const app = express();
 const port = env.PORT || 3000;
 const host = env.HOST;
+
+//  log all incoming http requests
+app.use(requestsLogger);
 
 // use modules routes
 app.use(user);
 
 app.get("/", (req, res) => { res.send("App is up and running!"); });
 
-app.use(notFoundHandler);
+app.use(errorHandler);
 app.set("port", port);
 
 app.listen(
@@ -30,10 +31,18 @@ app.listen(
 
 module.exports = app;
 
-function notFoundHandler(req, res) {
-    debug(
-        req.protocol + "://" + req.get("host") + req.originalUrl,
-    );
+function errorHandler(err, req, res, next) {
+    const errStatus = err.statusCode || 500;
+    const errMsg = err.message || 'Something went wrong';
+    return res.status(errStatus).json({
+        success: false,
+        status: errStatus,
+        message: errMsg,
+        stack: process.env.NODE_ENV === 'development' ? err.stack : {},
+    })
+}
 
-    return res.status(404).json({ error: "Not Found" });
+function requestsLogger(req, res, next) {
+    console.log(`${req.method}  ${req.url}  ${req.ip}`); 
+    next(); 
 }
