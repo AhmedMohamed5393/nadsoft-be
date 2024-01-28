@@ -1,0 +1,72 @@
+version: '3.9'
+services:
+  api:
+    container_name: "${APP_NAME:-nad_soft}_api"
+    restart: always
+    env_file: 
+      - .env.development
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '${DOCKER_COMPOSE_PORT:-8000}:80'
+    volumes:
+      - .:/home/node/app
+      - /home/node/app/node_modules
+    links:
+      - db
+    depends_on:
+      - db
+    networks:
+      - nad_soft
+
+  db:
+    container_name: '${APP_NAME:-nad_soft}_mysql'
+    restart: always
+    image: 'mysql/mysql-server:8.0'
+    ports:
+      - '${DATABASE_EXPOSE_PORT:-3906}:3306'
+    env_file:
+      - .env.development
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DATABASE_PASSWORD:-password}'
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    volumes:
+      - 'nad_soft-db:/var/lib/mysql'
+    networks:
+      - nad_soft
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-p${DATABASE_PASSWORD:-password}" ]
+      retries: 3
+      timeout: 5s
+
+  phpmyadmin:
+    platform: linux/x86_64
+    restart: always
+    container_name: '${APP_NAME:-nad_soft}_phpmyadmin'
+    image: phpmyadmin/phpmyadmin
+    env_file:
+      - .env.development
+    links:
+      - db:db
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    environment:
+      MYSQL_USERNAME: "${DATABASE_USER:-user}"
+      MYSQL_ROOT_PASSWORD: "${DATABASE_PASSWORD:-password}"
+      PMA_HOST: db
+    networks:
+      - nad_soft
+
+networks:
+  nad_soft:
+    driver: bridge
+
+volumes:
+  nad_soft-api:
+    driver: local
+  nad_soft-db:
+    driver: local
+  phpmyadmin:
+    driver: local
